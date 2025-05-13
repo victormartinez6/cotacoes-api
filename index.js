@@ -43,7 +43,7 @@ app.get('/cotacoes', async (req, res) => {
   }
 });
 
-// Rota individual com spread personalizado por moeda
+// Rota individual com spread personalizado por moeda (com retorno em 'data')
 app.get('/cotacao/:moeda', async (req, res) => {
   try {
     const moeda = req.params.moeda.toUpperCase();
@@ -63,13 +63,15 @@ app.get('/cotacao/:moeda', async (req, res) => {
     const vendaComSpread = valorVenda * (1 + spread);
 
     res.json({
-      moeda: info.code,
-      nome: info.name,
-      compra: valorCompra,
-      venda: valorVenda,
-      vendaComSpread: vendaComSpread.toFixed(4),
-      spreadPercentual: spread * 100,
-      dataHora: data.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+      data: {
+        moeda: info.code,
+        nome: info.name,
+        compra: valorCompra,
+        venda: valorVenda,
+        vendaComSpread: vendaComSpread.toFixed(4),
+        spreadPercentual: spread * 100,
+        dataHora: data.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+      }
     });
   } catch (error) {
     console.error(error);
@@ -82,3 +84,4 @@ app.listen(PORT, () => {
 });
 
 // trigger redeploy
+
