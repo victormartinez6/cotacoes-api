@@ -4,10 +4,13 @@ import axios from 'axios';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Lista de moedas com rotas individuais
+// Lista de moedas para rota geral
 const moedas = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'CLP'];
 
-// Rota geral
+// Percentual de spread aplicado sobre o valor de venda (ex: 2%)
+const SPREAD_PERCENTUAL = 0.02;
+
+// Rota geral para todas as moedas
 app.get('/cotacoes', async (req, res) => {
   try {
     const url = `https://economia.awesomeapi.com.br/last/${moedas.map(m => `${m}-BRL`).join(',')}`;
@@ -33,29 +36,35 @@ app.get('/cotacoes', async (req, res) => {
   }
 });
 
-// Rotas individuais
-moedas.forEach(moeda => {
-  app.get(`/cotacao/${moeda.toLowerCase()}`, async (req, res) => {
-    try {
-      const url = `https://economia.awesomeapi.com.br/last/${moeda}-BRL`;
-      const response = await axios.get(url);
-      const info = response.data[`${moeda}BRL`];
-      const data = new Date(Number(info.timestamp) * 1000);
+// Rota individual com spread aplicado
+app.get('/cotacao/:moeda', async (req, res) => {
+  try {
+    const moeda = req.params.moeda.toUpperCase();
+    const url = `https://economia.awesomeapi.com.br/last/${moeda}-BRL`;
+    const response = await axios.get(url);
+    const info = response.data[`${moeda}BRL`];
+    const data = new Date(Number(info.timestamp) * 1000);
 
-      res.json({
-        moeda: info.code,
-        nome: info.name,
-        compra: parseFloat(info.bid),
-        venda: parseFloat(info.ask),
-        dataHora: data.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
-      });
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ erro: 'Erro ao buscar cotação' });
-    }
-  });
+    const valorCompra = parseFloat(info.bid);
+    const valorVenda = parseFloat(info.ask);
+    const vendaComSpread = valorVenda * (1 + SPREAD_PERCENTUAL);
+
+    res.json({
+      moeda: info.code,
+      nome: info.name,
+      compra: valorCompra,
+      venda: valorVenda,
+      vendaComSpread: vendaComSpread.toFixed(4),
+      spreadPercentual: SPREAD_PERCENTUAL * 100,
+      dataHora: data.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ erro: 'Erro ao buscar cotação' });
+  }
 });
 
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
+
