@@ -4,13 +4,20 @@ import axios from 'axios';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Lista de moedas para rota geral
+// Lista de moedas
 const moedas = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'CLP'];
 
-// Percentual de spread aplicado sobre o valor de venda (ex: 2%)
-const SPREAD_PERCENTUAL = 0.02;
+// Spread percentual por moeda
+const SPREADS = {
+  USD: 0.042,
+  EUR: 0.042,
+  GBP: 0.075,
+  CAD: 0.050,
+  AUD: 0.050,
+  CLP: 0.05
+};
 
-// Rota geral para todas as moedas
+// Rota geral (sem spread)
 app.get('/cotacoes', async (req, res) => {
   try {
     const url = `https://economia.awesomeapi.com.br/last/${moedas.map(m => `${m}-BRL`).join(',')}`;
@@ -36,10 +43,15 @@ app.get('/cotacoes', async (req, res) => {
   }
 });
 
-// Rota individual com spread aplicado
+// Rota individual com spread personalizado por moeda
 app.get('/cotacao/:moeda', async (req, res) => {
   try {
     const moeda = req.params.moeda.toUpperCase();
+
+    if (!SPREADS[moeda]) {
+      return res.status(400).json({ erro: `Moeda ${moeda} não suportada.` });
+    }
+
     const url = `https://economia.awesomeapi.com.br/last/${moeda}-BRL`;
     const response = await axios.get(url);
     const info = response.data[`${moeda}BRL`];
@@ -47,7 +59,8 @@ app.get('/cotacao/:moeda', async (req, res) => {
 
     const valorCompra = parseFloat(info.bid);
     const valorVenda = parseFloat(info.ask);
-    const vendaComSpread = valorVenda * (1 + SPREAD_PERCENTUAL);
+    const spread = SPREADS[moeda];
+    const vendaComSpread = valorVenda * (1 + spread);
 
     res.json({
       moeda: info.code,
@@ -55,7 +68,7 @@ app.get('/cotacao/:moeda', async (req, res) => {
       compra: valorCompra,
       venda: valorVenda,
       vendaComSpread: vendaComSpread.toFixed(4),
-      spreadPercentual: SPREAD_PERCENTUAL * 100,
+      spreadPercentual: spread * 100,
       dataHora: data.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
     });
   } catch (error) {
