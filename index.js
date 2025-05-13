@@ -20,7 +20,7 @@ const SPREADS = {
 // Rota geral (sem spread)
 app.get('/cotacoes', async (req, res) => {
   try {
-    const url = `https://economia.awesomeapi.com.br/last/${moedas.map(m => `${m}-BRL`).join(',')}`;
+    const url = `https://economia.awesomeapi.com.br/last/${moedas.map(m => \`\${m}-BRL\`).join(',')}`;
     const response = await axios.get(url);
     const dados = response.data;
 
@@ -43,44 +43,34 @@ app.get('/cotacoes', async (req, res) => {
   }
 });
 
-// Rota individual com spread personalizado por moeda (com retorno em 'data')
+// Rota individual com spread personalizado por moeda (resposta como texto para Umbler)
 app.get('/cotacao/:moeda', async (req, res) => {
   try {
     const moeda = req.params.moeda.toUpperCase();
 
     if (!SPREADS[moeda]) {
-      return res.status(400).json({ erro: `Moeda ${moeda} não suportada.` });
+      return res.status(400).json({ erro: \`Moeda \${moeda} não suportada.\` });
     }
 
-    const url = `https://economia.awesomeapi.com.br/last/${moeda}-BRL`;
+    const url = `https://economia.awesomeapi.com.br/last/\${moeda}-BRL`;
     const response = await axios.get(url);
-    const info = response.data[`${moeda}BRL`];
+    const info = response.data[\`\${moeda}BRL\`];
     const data = new Date(Number(info.timestamp) * 1000);
 
-    const valorCompra = parseFloat(info.bid);
     const valorVenda = parseFloat(info.ask);
     const spread = SPREADS[moeda];
     const vendaComSpread = valorVenda * (1 + spread);
+    const dataHora = data.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 
-    res.json({
-      data: {
-        moeda: info.code,
-        nome: info.name,
-        compra: valorCompra,
-        venda: valorVenda,
-        vendaComSpread: vendaComSpread.toFixed(4),
-        spreadPercentual: spread * 100,
-        dataHora: data.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
-      }
-    });
+    res.send(\`Cotação \${moeda}: R$ \${vendaComSpread.toFixed(4)} (Atualizado: \${dataHora})\`);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ erro: 'Erro ao buscar cotação' });
+    res.status(500).send("Erro ao buscar cotação");
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
+  console.log(\`Servidor rodando na porta \${PORT}\`);
 });
 
 // trigger redeploy
