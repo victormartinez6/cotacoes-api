@@ -20,7 +20,7 @@ const SPREADS = {
 // Rota geral (sem spread)
 app.get('/cotacoes', async (req, res) => {
   try {
-    const url = `https://economia.awesomeapi.com.br/last/${moedas.map(m => \`\${m}-BRL\`).join(',')}`;
+    const url = `https://economia.awesomeapi.com.br/last/${moedas.map(m => `${m}-BRL`).join(',')}`;
     const response = await axios.get(url);
     const dados = response.data;
 
