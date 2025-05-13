@@ -43,7 +43,7 @@ app.get('/cotacoes', async (req, res) => {
   }
 });
 
-// Rota individual com spread personalizado por moeda e resposta compatível com Umbler
+// Rota individual com spread e resposta apenas com 'Data' para Umbler
 app.get('/cotacao/:moeda', async (req, res) => {
   try {
     const moeda = req.params.moeda.toUpperCase();
@@ -63,9 +63,6 @@ app.get('/cotacao/:moeda', async (req, res) => {
     const vendaComSpread = valorVenda * (1 + spread);
 
     res.json({
-      BotId: "aCNi4Y1M8sA7N0wb",
-      BotInstanceId: "aCNi4Y1M8sA7N0wb",
-      StepId: "aCNi4Y1M8sA7N0wb",
       Data: {
         moeda: info.code,
         nome: info.name,
