@@ -5,16 +5,15 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Lista de moedas
-const moedas = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'CLP'];
+const moedas = ['USD', 'EUR', 'GBP', 'CAD', 'AUD'];
 
 // Spread percentual por moeda
 const SPREADS = {
-  USD: 0.042,
-  EUR: 0.042,
+  USD: 0.039,
+  EUR: 0.04,
   GBP: 0.075,
-  CAD: 0.040,
-  AUD: 0.040,
-  CLP: 0.05
+  CAD: 0.07,
+  AUD: 0.07
 };
 
 // Rota geral (sem spread)
