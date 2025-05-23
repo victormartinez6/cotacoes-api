@@ -9,11 +9,11 @@ const moedas = ['USD', 'EUR', 'GBP', 'CAD', 'AUD'];
 
 // Spread percentual por moeda
 const SPREADS = {
-  USD: 0.039,
-  EUR: 0.04,
-  GBP: 0.075,
-  CAD: 0.07,
-  AUD: 0.07
+  USD: 0.064,
+  EUR: 0.063,
+  GBP: 0.099,
+  CAD: 0.094,
+  AUD: 0.094
 };
 
 // Rota geral (sem spread)
