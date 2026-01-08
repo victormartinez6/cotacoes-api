@@ -1,12 +1,8 @@
 import express from "express";
 import axios from "axios";
-import dns from "node:dns";
-import https from "node:https";
-
-dns.setDefaultResultOrder("ipv4first"); // importante em alguns ambientes (Railway/IPv6)
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 // Lista de moedas
 const moedas = ["USD", "EUR", "GBP", "CAD", "AUD"];
@@ -20,17 +16,19 @@ const SPREADS = {
   AUD: 0.064,
 };
 
-// Axios “robusto” (timeout + agent)
+// Axios configurado com API Key (privada) + timeout
 const http = axios.create({
   timeout: 8000,
-  httpsAgent: new https.Agent({ keepAlive: true, family: 4 }), // força IPv4
   headers: {
-    "User-Agent": "cotacoes-api/1.0",
     Accept: "application/json",
+    "User-Agent": "cotacoes-api/1.0",
+    ...(process.env.AWESOME_API_KEY
+      ? { "x-api-key": process.env.AWESOME_API_KEY }
+      : {}),
   },
 });
 
-// Rotas básicas para teste/health
+// Rotas básicas (facilitam teste e healthcheck)
 app.get("/", (req, res) => {
   res.status(200).json({ ok: true, service: "cotacoes-api" });
 });
@@ -39,45 +37,58 @@ app.get("/health", (req, res) => {
   res.status(200).json({ ok: true });
 });
 
+// Helpers
+function formatSemSpread(info) {
+  const data = new Date(Number(info.timestamp) * 1000);
+  return {
+    moeda: info.code,
+    nome: info.name,
+    compra: Number(parseFloat(info.bid).toFixed(2)),
+    venda: Number(parseFloat(info.ask).toFixed(2)),
+    dataHora: data.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
+  };
+}
+
 // Rota geral (sem spread)
 app.get("/cotacoes", async (req, res) => {
   try {
-    const url = `https://economia.awesomeapi.com.br/last/${moedas.map((m) => `${m}-BRL`).join(",")}`;
+    const pares = moedas.map((m) => `${m}-BRL`).join(",");
+    const url = `https://economia.awesomeapi.com.br/last/${pares}`;
+
     const response = await http.get(url);
     const dados = response.data;
 
-    const resultado = Object.keys(dados).map((key) => {
-      const moeda = dados[key];
-      const data = new Date(Number(moeda.timestamp) * 1000);
-      return {
-        moeda: moeda.code,
-        nome: moeda.name,
-        compra: Number(parseFloat(moeda.bid).toFixed(2)),
-        venda: Number(parseFloat(moeda.ask).toFixed(2)),
-        dataHora: data.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
-      };
-    });
-
-    res.json({ cotacoes: resultado });
+    const resultado = Object.keys(dados).map((key) => formatSemSpread(dados[key]));
+    return res.json({ cotacoes: resultado });
   } catch (error) {
+    const status = error?.response?.status;
+
     console.error("Erro /cotacoes:", {
       message: error?.message,
       code: error?.code,
-      status: error?.response?.status,
+      status,
       data: error?.response?.data,
     });
 
-    res.status(502).json({
+    // Se a AwesomeAPI devolveu 429, repasse (não mascare como 502)
+    if (status === 429) {
+      return res.status(429).json({
+        erro: "Rate limit do provedor de cotações",
+        detalhe: "Tente novamente em alguns segundos.",
+      });
+    }
+
+    return res.status(502).json({
       erro: "Erro ao buscar cotações",
-      detalhe: error?.response?.status ? `AwesomeAPI status ${error.response.status}` : (error?.code || "Falha/timeout"),
+      detalhe: status ? `AwesomeAPI status ${status}` : (error?.code || "Falha/timeout"),
     });
   }
 });
 
-// Rota individual com spread
+// Rota individual com spread e resposta em 'Data'
 app.get("/cotacao/:moeda", async (req, res) => {
   try {
-    const moeda = req.params.moeda.toUpperCase();
+    const moeda = String(req.params.moeda || "").toUpperCase();
 
     if (!SPREADS[moeda]) {
       return res.status(400).json({ erro: `Moeda ${moeda} não suportada.` });
@@ -98,7 +109,7 @@ app.get("/cotacao/:moeda", async (req, res) => {
     const spread = SPREADS[moeda];
     const vendaComSpread = valorVenda * (1 + spread);
 
-    res.json({
+    return res.json({
       Data: {
         moeda: info.code,
         nome: info.name,
@@ -110,21 +121,31 @@ app.get("/cotacao/:moeda", async (req, res) => {
       },
     });
   } catch (error) {
+    const status = error?.response?.status;
+
     console.error("Erro /cotacao/:moeda:", {
       message: error?.message,
       code: error?.code,
-      status: error?.response?.status,
+      status,
       data: error?.response?.data,
     });
 
-    res.status(502).json({
+    if (status === 429) {
+      return res.status(429).json({
+        erro: "Rate limit do provedor de cotações",
+        detalhe: "Tente novamente em alguns segundos.",
+      });
+    }
+
+    return res.status(502).json({
       erro: "Erro ao buscar cotação",
-      detalhe: error?.response?.status ? `AwesomeAPI status ${error.response.status}` : (error?.code || "Falha/timeout"),
+      detalhe: status ? `AwesomeAPI status ${status}` : (error?.code || "Falha/timeout"),
     });
   }
 });
 
-// Bind explícito (bom para containers/proxy)
+// Importante para Railway/containers
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Servidor rodando na porta ${PORT}`);
+  console.log(`AWESOME_API_KEY configurada? ${Boolean(process.env.AWESOME_API_KEY)}`);
 });
