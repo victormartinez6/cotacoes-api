@@ -9,8 +9,8 @@ const moedas = ["USD", "EUR", "GBP", "CAD", "AUD"];
 
 // Spread percentual por moeda
 const SPREADS = {
-  USD: 0.067,
-  EUR: 0.080,
+  USD: 0.085,
+  EUR: 0.085,
   GBP: 0.099,
   CAD: 0.064,
   AUD: 0.064,
